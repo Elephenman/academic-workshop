@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+  <!-- 浙大蓝全屏背景 -->
+  <rect width="1280" height="720" fill="#003F88"/>
+  
+  <!-- 右侧几何装饰 -->
+  <rect x="900" y="0" width="380" height="720" fill="#003F88" fill-opacity="0"/>
+  <line x1="1000" y1="100" x2="1000" y2="620" stroke="#2B6CB0" stroke-width="1" stroke-opacity="0.3"/>
+  <line x1="1050" y1="50" x2="1050" y2="670" stroke="#2B6CB0" stroke-width="1" stroke-opacity="0.2"/>
+  <line x1="1100" y1="150" x2="1100" y2="570" stroke="#2B6CB0" stroke-width="1" stroke-opacity="0.15"/>
+  
+  <!-- 左侧accent竖条装饰 -->
+  <rect x="0" y="0" width="6" height="720" fill="#ED7D31"/>
+  
+  <!-- 大号章节编号 (半透明背景) -->
+  <text x="100" y="500" fill="#FFFFFF" fill-opacity="0.08" font-family="Source Han Sans CN, Microsoft YaHei, Arial, sans-serif" font-size="300" font-weight="bold">
+    {{CHAPTER_NUM}}
+  </text>
+  
+  <!-- 章节标题 -->
+  <text x="100" y="360" fill="#FFFFFF" font-family="Source Han Sans CN, Microsoft YaHei, Arial, sans-serif" font-size="56" font-weight="bold">
+    {{CHAPTER_TITLE}}
+  </text>
+  
+  <!-- 章节描述 -->
+  <text x="100" y="430" fill="#EBF2FA" font-family="Source Han Sans CN Light, Microsoft YaHei, Arial, sans-serif" font-size="24">
+    {{CHAPTER_DESC}}
+  </text>
+  
+  <!-- accent装饰横线 -->
+  <rect x="100" y="460" width="80" height="4" fill="#ED7D31" rx="2"/>
+</svg>

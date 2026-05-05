@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+  <!-- 背景 -->
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+  
+  <!-- ==================== 顶部装饰区域 ==================== -->
+  <!-- 浙大蓝主横条 -->
+  <rect x="0" y="0" width="1280" height="100" fill="#003F88"/>
+  <!-- 左侧accent竖条装饰 -->
+  <rect x="0" y="0" width="6" height="100" fill="#ED7D31"/>
+  
+  <!-- ==================== 主内容区域 ==================== -->
+  <!-- 感谢文字 -->
+  <text x="640" y="320" text-anchor="middle" fill="#003F88" font-family="Source Han Sans CN, Microsoft YaHei, Arial, sans-serif" font-size="56" font-weight="bold">
+    {{THANK_YOU}}
+  </text>
+  
+  <!-- 副标题/标语 -->
+  <text x="640" y="380" text-anchor="middle" fill="#545458" font-family="Source Han Sans CN Light, Microsoft YaHei, Arial, sans-serif" font-size="24">
+    {{ENDING_SUBTITLE}}
+  </text>
+  
+  <!-- 装饰分割线 -->
+  <line x1="440" y1="420" x2="840" y2="420" stroke="#2B6CB0" stroke-width="2"/>
+  <circle cx="640" cy="420" r="5" fill="#ED7D31"/>
+  
+  <!-- 联系信息卡片 -->
+  <rect x="390" y="460" width="500" height="80" fill="#F5F7FA" rx="8"/>
+  <text x="640" y="505" text-anchor="middle" fill="#1D1D1F" font-family="Source Han Sans CN Light, Microsoft YaHei, Arial, sans-serif" font-size="18">
+    {{CONTACT_INFO}}
+  </text>
+  <text x="640" y="530" text-anchor="middle" fill="#545458" font-family="Source Han Sans CN Light, Microsoft YaHei, Arial, sans-serif" font-size="16">
+    {{EMAIL}}
+  </text>
+  
+  <!-- ==================== 底部信息 ==================== -->
+  <rect x="0" y="665" width="1280" height="55" fill="#F5F7FA"/>
+  <text x="640" y="698" text-anchor="middle" fill="#999999" font-family="Source Han Sans CN Light, Microsoft YaHei, Arial, sans-serif" font-size="14">
+    {{COPYRIGHT}}
+  </text>
+</svg>
