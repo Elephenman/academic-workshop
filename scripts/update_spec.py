@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """Propagate a spec_lock.md value change to both the lock file and svg_output/*.svg.
 
 Examples:
@@ -21,8 +22,6 @@ bulk propagation. For per-role family changes, edit spec_lock.md and re-author
 the affected pages.
 """
 import win_compat  # noqa: F401 -- Windows compat (path+encoding fix)
-
-from __future__ import annotations
 
 import argparse
 import re

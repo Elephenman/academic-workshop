@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 #!/usr/bin/env python3
 """PPT Master project management helpers.
 
@@ -9,8 +11,6 @@ Usage:
 """
 
 import win_compat  # noqa: F401 -- Windows compat (path+encoding fix)
-
-from __future__ import annotations
 
 import re
 import shutil
