@@ -110,3 +110,37 @@
 生成器里对应两个helper：`para_box(text, x, y, w, fs, …)`（单段落）→ 一个框；`para_box_multi([line1, line2, …], x, y, w, fs, …)`（多行同框）→ 一个框 + `<a:br/>`。两者都按 `est_lines()`（与转换器 `_estimate_wrapped_lines` 一致的 CJK 宽度估算）预算框高，避免堆叠重叠。
 
 **校验清单**：导出后抽查一张结果页，非空白文本框应为「页眉 + 3 个 tag + 3 个段落框 + 页脚」≈ 10–12 个，而不是 30+ 个；正文 run 的 `font.size` 应 ≥ 13.5pt。
+
+---
+
+## 9. 参考实现：`scripts/md_to_svg.py`（通用 md → SVG 生成器）
+
+本准则的"参考实现"是 `scripts/md_to_svg.py`——把任意论文 / 文献 Markdown 直接变成一套符合上面全部准则的浙大蓝 16:9 SVG，再交给 `svg_to_pptx.py` 导出即可。手搓 SVG 时按它的逻辑对齐即可。
+
+### 9.1 映射规则（自动）
+- `# 标题` → 封面；`##` 每个一级分区 → 一个**章节分隔页** + 内容页。
+- `##` 列表 → **Agenda** 页（编号 + 标题 + 首段作描述）。
+- 含图片的区（含 `###` 子节里的图片）→ **图页**：图按原比例落右侧，左栏套「实验目的 → 图意拆解（Panel）→ 逻辑衔接」四段式；首句进顶部 key-message 条，单句目的不重复进左栏。
+- 含表格的区 → **表格页**（浙大蓝表头 + 隔行浅蓝）；同区剩余 `###` 子节另起**卡片页**。
+- 含 `###` 子节但无图无表 → **卡片网格**（子节标题 + 正文）。
+- 纯 bullet / 段落 → 对应 bullets / para 页。
+
+### 9.2 文本渲染（自动满足 §8）
+- 每个逻辑段落 = 一个 `<text data-wrap-w="W">`（段落级，非行级）。
+- 段内多行（Panel A–D）= 无定位子 `<tspan>`，折叠进同一框。
+- 正文 FS_BODY2=20px(15pt) / FS_BODY=18px(13.5pt)，严格走 §8.1 字号表。
+- 自动 `clean_md()` 去除 `**`/`*`/`` ` `` 等 Markdown 标记，不泄漏进 PPT。
+
+### 9.3 用法
+```bash
+python3 ${SKILL_DIR}/scripts/md_to_svg.py <input.md> \
+    --out <project_path> [--title "自定义标题"] [--authors "作者行"]
+# 输出：<project_path>/svg_output/*.svg + images/(自动拷贝/降采样) + notes/*.md(演讲备注)
+# 随后：python3 ${SKILL_DIR}/scripts/svg_to_pptx.py <project_path> --only native -f ppt169
+```
+
+### 9.4 已知 v1 限制（后续可增强）
+- 不支持 Mermaid / 流程图源码解析（§策略类分区退化为文字页，不画流程图）。
+- 一个区同时含「表格 + 多子节」时，表格页之后只为**无表**子节补卡片页（有表子节不单独成页）。
+- 图片按 md 链接（Obsidian `![[fig.png|w]]` 或标准 `![](fig.png)`）解析，优先在 md 同目录 / `images/` 子目录 / 递归查找。
+

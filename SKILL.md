@@ -345,6 +345,12 @@ python3 ${SKILL_DIR}/scripts/total_md_split.py <project_path>
 python3 ${SKILL_DIR}/scripts/finalize_svg.py <project_path>
 ```
 
+**8.2.1** 若源是 Markdown（论文/文献），可直接用通用生成器产出 SVG（自动套用本准则：分区镜像 / Agenda / 章节分隔页 / 结果四段式 / 段落级文本框 / 图原比例落位 / 浙大蓝）：
+```bash
+python3 ${SKILL_DIR}/scripts/md_to_svg.py <input.md> --out <project_path> [--title "..."] [--authors "..."]
+# 生成 <project_path>/svg_output/*.svg + images/ + notes/，再走 8.3 导出
+```
+
 **8.3** PPTX导出：
 ```bash
 python3 ${SKILL_DIR}/scripts/svg_to_pptx.py <project_path>
@@ -384,6 +390,7 @@ python3 ${SKILL_DIR}/scripts/notes_to_audio.py <project_path> --backend edge
 ├── scripts/                     # ppt-master整目录复用 + 2个新脚本
 │   ├── template_dissector.py     # ⭐ 模板解剖器
 │   ├── taste_guardian_cli.py     # ⭐ 品味守卫CLI
+│   ├── md_to_svg.py              # ⭐ 通用 md→学术PPT(SVG) 生成器（段落级文本框/浙大蓝/图原比例落位）
 │   └── ...（22个顶层.py + 10个子目录）
 ├── references/
 │   ├── strategist.md             # ⭐ 学术策略师

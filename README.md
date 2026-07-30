@@ -42,7 +42,7 @@
 1. 读取角色定义：`references/executor-base.md`、`shared-standards.md`、`executor-academic.md`
    以及 `references/md_driven_content.md`（MD 结构驱动 · 内容密度准则，本仓库新增）。
 2. 若有用户模板，先解剖其设计元素。
-3. 生成 SVG 页面（白底 + 浙大蓝装饰 + 段落级文本）。
+3. 生成 SVG 页面：源为 Markdown 时直接 `python scripts/md_to_svg.py <input.md> --out <project_dir>`（白底 + 浙大蓝装饰 + 段落级文本 + 图按原比例落位）；手搓 SVG 时按 `references/md_driven_content.md` §9 对齐。
 4. 运行 `python scripts/svg_to_pptx.py <project_dir> --only native -f ppt169` 导出可编辑 PPTX。
 
 ---
@@ -55,6 +55,7 @@ academic-workshop/
 ├── README.md                     # 本文件
 ├── scripts/
 │   ├── svg_to_pptx/              # SVG → PPTX 转换器（含 data-wrap-w 段落文本优化）
+│   ├── md_to_svg.py              # 【新增】通用 md → 学术PPT(SVG) 生成器（段落级/浙大蓝/图原比例）
 │   ├── project_manager.py
 │   └── update_spec.py
 ├── references/
@@ -77,6 +78,7 @@ academic-workshop/
 | 内容密度准则 | 新增 `references/md_driven_content.md`，固化「Agenda + 章节分隔页 + 结果页四段式 + 背景卡片网格 + 方法表/步骤链」的默认做法，并接入 `SKILL.md` Step 6.1 阅读清单 |
 | 字号体系 | 正文提升到 13.5–15pt、页眉 22.5pt，符合投影可读与留白审美 |
 | 配色 | 改用内置 `zju_blue` 真实模板系统（主蓝 `#003F88`），不再手搓配色 |
+| 通用生成器 | 新增 `scripts/md_to_svg.py`：任意论文 md → 一套符合上述准则的浙大蓝 SVG（分区镜像/Agenda/分隔页/结果四段式/表格/卡片），图按位置原比例落位、段落级文本框、`clean_md` 去标记；`references/md_driven_content.md` 补 §9 作为参考实现说明 |
 
 ---
 
