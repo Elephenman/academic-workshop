@@ -144,3 +144,55 @@ python3 ${SKILL_DIR}/scripts/md_to_svg.py <input.md> \
 - 一个区同时含「表格 + 多子节」时，表格页之后只为**无表**子节补卡片页（有表子节不单独成页）。
 - 图片按 md 链接（Obsidian `![[fig.png|w]]` 或标准 `![](fig.png)`）解析，优先在 md 同目录 / `images/` 子目录 / 递归查找。
 
+---
+
+## 10. Curation 编排数据（达到旧版叙事效果）
+
+### 10.1 动机
+md_to_svg.py 的「机械切片」模式（无 `--curation`）对各 `##` 分页、每节插分隔页，结果页标题/面板来自 md 原文，容易机械化重复。
+
+通过 `--curation deck.json` 向脚本注入一篇论文的**编排数据**（章分隔、结果四段式文本、版式分化），脚本即可产出**手工编排般**的叙事 deck（封面→Agenda→背景卡片→策略流程图→分隔「结果」→5 张结果图(四段式)→分隔「方法」→材料表→协组卡→分隔「讨论·批判·结论」→讨论→批判→结论→数据）。
+
+### 10.2 全字段
+```json
+{
+  "cover":       { "summary": "", "title": "", "authors": "" },
+  "agenda":      [["01","标题","描述"], ["02","标题","描述"], ...],
+  "chapters":    [{"label":"03","title":"结果与解读","desc":"§3.1–3.5","sections":[3]}, ...],
+  "roles":       {"1":"background","2":"flow","3":"result","4":"methods","5":"discussion","6":"critique","7":"conclusion","8":"dataref"},
+  "results":     {"fig1.png": {"title":"","finding":"","purpose":"","panels":[""],"link":""}, ...},
+  "flows":       {"2": {"nodes":["",""], "note":""}},
+  "conclusion":  {"rows":[["维度","结论"], ...]},
+  "dataref":     {"items":[""],"summary":""},
+  "background":  {"cards":[["标题","正文"], ...]},
+  "discussion":  {"items":["","",...]},
+  "critique":    {"items":["","",...]}
+}
+```
+
+| 字段 | 作用 | 缺省行为 |
+|---|---|---|
+| `cover` | 封面摘要/标题/作者覆盖 | 取 md frontmatter 或文件名 |
+| `agenda` | 策划的 Agenda 项（8 组） | 自动从 md 各 `##` 首段生成 |
+| `chapters` | 章定义（插分隔页 + 成员节 idx） | 无 → 每 `##` 一节（旧行为） |
+| `roles` | 1-based 节索引 → 渲染规则 | 自动推断（表格/卡片/bullets） |
+| `results` | 按图名的结果页四段式（标题/发现/目的/Panels/衔接） | 取 `###` 标题 + md 段落 |
+| `flows` | 策略/流程图布局（节点 + 说明） | 退化为卡片网格 |
+| `conclusion` | 结论两列表（维度/结论） | 从 md 表格或 bullets 推断 |
+| `dataref` | 数据速查 bullets + 一句话总结框 | 取 md bullets |
+| `background` | 背景卡片（标题+正文） | 取 `###` 子节 |
+| `discussion` | 讨论要点 | 取 md bullets/paras |
+| `critique` | 批判要点 | 取 md bullets/paras |
+
+### 10.3 使用
+```bash
+python3 ${SKILL_DIR}/scripts/md_to_svg.py <input.md> --out <project_path> --curation <deck.json>
+# deck.json 由助手（WorkBuddy）在每次会话中自动生成，无需手动编辑。
+```
+
+### 10.4 效果
+- 分隔页只在**章边界**出现（不再每 `##` 一页）。
+- 结果页标题由 `results[img].title` 提供，如「A 催化循环」而非「3.1 计算策略：从头设计底物选择性金属蛋白酶」。
+- 冗余前缀（主干叙述：/作者指出：）自动清理。
+- 讨论/批判/结论/数据 各用专属版式，不再 uniform bullets。
+

@@ -12,8 +12,11 @@
 
 用法：
     python md_to_svg.py INPUT.md [--out DIR] [--title "..."] [--authors "..."]
+    python md_to_svg.py INPUT.md --curation deck.json   # 编排驱动，达到旧版叙事效果
 
 输出 DIR/ 下：svg_output/*.svg（每页一文件）、images/*.png（拷贝+必要时降采样）、notes/*.md（演讲备注）。
+无 --curation 时按 md 标题机械切片（已做去套话/跨页去重）；带 --curation 时按编排数据
+（章节分隔 / 结果四段式 / 版式分化）渲染，复刻手工编排质感。
 """
 import os
 import re
@@ -628,6 +631,89 @@ def s_para(sec_label, title, key_msg, paras, page_n, section_name):
     return content_slide(sec_label, title, key_msg, out, page_n, section_name)
 
 
+def strip_boiler(s):
+    """去掉 md 自带的套话前缀（主干叙述：/作者指出：/本文首次…），避免机械腔。"""
+    s = s.strip()
+    for p in ("主干叙述：", "主干叙述:", "作者指出，", "作者指出:",
+              "本文首次", "本文中首次", "值得注意的是，", "值得一提的是，"):
+        if s.startswith(p):
+            s = s[len(p):].strip()
+    return s
+
+
+def s_critique(sec_label, title, key_msg, items, page_n, section_name):
+    out = []
+    bullets([strip_boiler(it) for it in items], ML, CTOP + 14, CW, FS_BULLET, out, gap=20)
+    return content_slide(sec_label, title, key_msg, out, page_n, section_name)
+
+
+def s_conclusion(sec_label, title, key_msg, rows, page_n, section_name):
+    out = []
+    x0, y0 = ML, CTOP + 6
+    c1, c2 = 220, CW - 220
+    head_h, row_h = 44, 96
+    out.append(f'<rect x="{x0}" y="{y0}" width="{c1}" height="{head_h}" fill="{BLUE}"/>')
+    out.append(f'<rect x="{x0+c1}" y="{y0}" width="{c2}" height="{head_h}" fill="{BLUE}"/>')
+    out.append(T(x0 + 12, y0 + head_h * 0.66, "维度", 17, FONT_CN, "#FFFFFF", "700"))
+    out.append(T(x0 + c1 + 12, y0 + head_h * 0.66, "结论", 17, FONT_CN, "#FFFFFF", "700"))
+    yy = y0 + head_h
+    for i, (k, v) in enumerate(rows):
+        fill = "#FFFFFF" if i % 2 == 0 else PALE
+        out.append(f'<rect x="{x0}" y="{yy}" width="{c1}" height="{row_h}" fill="{fill}" stroke="{LINE}" stroke-width="1"/>')
+        out.append(f'<rect x="{x0+c1}" y="{yy}" width="{c2}" height="{row_h}" fill="{fill}" stroke="{LINE}" stroke-width="1"/>')
+        out.append(T(x0 + 12, yy + 34, k, 16, FONT_CN, BLUE, "700"))
+        para_box(v, x0 + c1 + 12, yy + 8, c2 - 24, 17, out, INK, "400", gap=0)
+        yy += row_h
+    return content_slide(sec_label, title, key_msg, out, page_n, section_name)
+
+
+def s_dataref(sec_label, title, key_msg, items, summary, page_n, section_name):
+    out = []
+    y = bullets(items, ML, CTOP + 14, CW, FS_BULLET, out, gap=18)
+    out.append(f'<rect x="{ML}" y="{y+6}" width="{CW}" height="70" rx="6" fill="{PALE}"/>')
+    out.append(f'<rect x="{ML}" y="{y+6}" width="6" height="70" fill="{ORANGE}"/>')
+    para_box(summary, ML + 16, y + 22, CW - 32, 17, out, INK, "400", gap=0)
+    return content_slide(sec_label, title, key_msg, out, page_n, section_name)
+
+
+def s_flow(sec_label, title, key_msg, nodes, note, page_n, section_name):
+    out = []
+    bw, bh = 200, 66
+    row1y, row2y = 245, 432
+    k = len(nodes)
+    top = nodes[: (k + 1) // 2]
+    bot = nodes[(k + 1) // 2:]
+    def xs(n_):
+        if n_ <= 1:
+            return [520]
+        return [60 + i * (920 / (n_ - 1)) for i in range(n_)]
+    topx = xs(len(top))
+    if len(bot) == len(top) - 1:
+        botx = list(reversed(topx[1:]))
+    elif bot:
+        botx = list(reversed(topx))
+    else:
+        botx = []
+    cy1, cy2 = row1y + bh / 2, row2y + bh / 2
+    edges = []
+    for i in range(len(top) - 1):
+        edges.append((topx[i] + bw, cy1, topx[i + 1], cy1))
+    if bot:
+        edges.append((topx[-1] + bw / 2, row1y + bh, topx[-1] + bw / 2, row2y))
+        for i in range(len(bot) - 1):
+            edges.append((botx[i], cy2, botx[i + 1] + bw, cy2))
+    for (x1, y1, x2, y2) in edges:
+        arrow(x1, y1, x2, y2, out)
+    for i, nd in enumerate(top):
+        draw_box(topx[i], row1y, bw, bh, nd, 16, out)
+    for i, nd in enumerate(bot):
+        draw_box(botx[i], row2y, bw, bh, nd, 16, out)
+    out.append(f'<rect x="{ML}" y="560" width="{CW}" height="64" rx="6" fill="{PALE}"/>')
+    out.append(f'<rect x="{ML}" y="560" width="6" height="64" fill="{BLUE2}"/>')
+    para_box(note, ML + 16, 576, CW - 32, 17, out, INK, "400", gap=0)
+    return content_slide(sec_label, title, key_msg, out, page_n, section_name)
+
+
 # ---------------- 主流程 ----------------
 def first_sentence(text):
     for sep in ("。", ".", "；", ";"):
@@ -683,8 +769,8 @@ def build(doc, out_dir, title_override=None, authors=""):
                     sec_label = label
                     title = sec["heading"]
                     paras = sec["paras"] or [sec_first]
-                purpose = paras[0]
-                panels = paras[1:] if len(paras) > 1 else paras
+                purpose = strip_boiler(paras[0])
+                panels = [strip_boiler(p) for p in (paras[1:] if len(paras) > 1 else paras)]
                 key = first_sentence(purpose)
                 # 单句目的只放 key 条，避免左栏重复；多句时左栏再展开
                 _parts = [p for p in re.split(r"[。.；;]", purpose) if p.strip()]
@@ -719,15 +805,241 @@ def build(doc, out_dir, title_override=None, authors=""):
             slides.append((f"{n:02d}_cards_{i}", svg, f"{sec['heading']}。含 {len(sec['subs'])} 个子小节。"))
             n += 1
         elif sec["bullets"]:
-            svg = s_bullets(label, sec["heading"], first_sentence(sec_first), sec["bullets"], n, sec["heading"])
+            svg = s_bullets(label, sec["heading"], first_sentence(sec_first), [strip_boiler(b) for b in sec["bullets"]], n, sec["heading"])
             slides.append((f"{n:02d}_bullets_{i}", svg, f"{sec['heading']}。{len(sec['bullets'])} 条要点。"))
             n += 1
         else:
-            svg = s_para(label, sec["heading"], first_sentence(sec_first), sec["paras"], n, sec["heading"])
+            svg = s_para(label, sec["heading"], first_sentence(sec_first), [strip_boiler(p) for p in sec["paras"]], n, sec["heading"])
             slides.append((f"{n:02d}_para_{i}", svg, f"{sec['heading']}。" + " ".join(sec["paras"][:2])))
             n += 1
 
     # 写入
+    for name, svg, note in slides:
+        with open(os.path.join(out_dir, "svg_output", name + ".svg"), "w", encoding="utf-8") as f:
+            f.write(svg)
+        if note:
+            with open(os.path.join(out_dir, "notes", name + ".md"), "w", encoding="utf-8") as f:
+                f.write(note)
+    return slides
+
+
+# ---------------- 编排层（curation）：达到旧版叙事效果 ----------------
+def load_curation(path):
+    """读取编排数据 JSON（或 YAML）。结构见仓库 references/md_driven_content.md §10。"""
+    with open(path, encoding="utf-8") as f:
+        txt = f.read()
+    if path.endswith((".yaml", ".yml")):
+        try:
+            import yaml
+            return yaml.safe_load(txt)
+        except Exception:
+            pass
+    import json
+    return json.loads(txt)
+
+
+def count_section_slides(sec):
+    fu = len(sec["images"]) + sum(len(s["images"]) for s in sec["subs"])
+    if fu > 0:
+        return max(1, fu)
+    if sec["subs"]:
+        n = 0
+        if first_table(sec) is not None:
+            n += 1
+        if any(not s["tables"] for s in sec["subs"]):
+            n += 1
+        return max(1, n)
+    if first_table(sec) is not None:
+        return 1
+    if sec["bullets"]:
+        return 1
+    return 1
+
+
+def build_curated(doc, curation, out_dir, title_override=None, authors=""):
+    """按 curation 编排出叙事化 deck（旧版 18 页质感）。
+
+    curation 字段：
+      cover:        {summary,title,authors}      封面覆盖
+      chapters:     [{label,title,desc,sections:[idx...]}]  章边界插分隔页
+      roles:        {idx: background/flow/result/methods/discussion/critique/conclusion/dataref}
+      results:      {img.png: {title,finding,purpose,panels[],link}}   结果页四段式
+      flows:        {idx: {nodes[],note}}          流程图（如策略页）
+      conclusion:    {rows:[[k,v]...]}             结论两列表
+      dataref:      {items[],summary}              数据速查
+      background:    {cards:[[h,body]...]}         背景卡片（可选，缺则取 md 子节）
+      discussion:    {items:[]} / critique: {items:[]}   （可选，缺则取 md）
+    """
+    global TOTAL
+    sections = doc["sections"]
+    chapters = curation.get("chapters", [])
+    roles = {str(k): v for k, v in curation.get("roles", {}).items()}
+    results = curation.get("results", {})
+    flows = curation.get("flows", {})
+    conclusion = curation.get("conclusion", {})
+    dataref = curation.get("dataref", {})
+    cover_cfg = curation.get("cover", {})
+
+    # 总页数（页脚用）
+    member = set()
+    for ch in chapters:
+        for idx in ch.get("sections", []):
+            member.add(int(idx))
+    TOTAL = 2  # 封面 + Agenda
+    for ch in chapters:
+        TOTAL += 1  # 分隔页
+        for idx in ch.get("sections", []):
+            TOTAL += count_section_slides(sections[idx - 1])
+    for idx in range(1, len(sections) + 1):
+        if idx in member:
+            continue
+        TOTAL += count_section_slides(sections[idx - 1])
+
+    title = title_override or cover_cfg.get("title") or doc["title"] or "未命名汇报"
+    summary = (cover_cfg.get("summary")
+               or first_sentence(" ".join(doc["lead"][:2]))
+               or (sections[0]["paras"][0] if sections and sections[0]["paras"] else ""))
+    authors = authors or cover_cfg.get("authors") or doc.get("authors", "")
+
+    slides = []
+    n = 1
+
+    svg, note = s_cover(title, summary, authors)
+    slides.append((f"{n:02d}_cover", svg, note)); n += 1
+
+    cur_agenda = curation.get("agenda")
+    if cur_agenda:
+        agenda_items = [(a[0], a[1], a[2]) for a in cur_agenda]
+    else:
+        agenda_items = []
+        for i, sec in enumerate(sections, 1):
+            d0 = sec["paras"][0] if sec["paras"] else (sec["subs"][0]["paras"][0] if sec["subs"] else "")
+            agenda_items.append((f"{i:02d}", sec["heading"], d0))
+    svg, note = s_agenda(agenda_items)
+    slides.append((f"{n:02d}_agenda", svg, note)); n += 1
+
+    def render_section(idx, sec):
+        nonlocal n
+        role = roles.get(str(idx), "auto")
+        # 结果页：章节/子节含图
+        fig_units = [(None, img) for img in sec["images"]]
+        for sub in sec["subs"]:
+            for img in sub["images"]:
+                fig_units.append((sub, img))
+        if fig_units:
+            for sub, img in fig_units:
+                if img in results:
+                    r = results[img]
+                    sec_label = (f"{idx}.{sec['subs'].index(sub) + 1}"
+                                 if sub is not None else f"{idx:02d}")
+                    title_r = r.get("title", (sub or sec)["heading"])
+                    finding = r.get("finding", "")
+                    purpose = r.get("purpose", "")
+                    panels = r.get("panels", [])
+                    link = r.get("link", "")
+                    ratio = read_ratio(os.path.join(out_dir, "images", img))
+                    svg = s_figure(sec_label, title_r, finding, purpose, panels, link,
+                                   "../images/" + img, ratio, n, title_r)
+                    note = f"{title_r}。{finding} " + " ".join(panels) + " 逻辑衔接：" + link
+                else:
+                    paras = (sub or sec)["paras"] or [sec["heading"]]
+                    purpose = strip_boiler(paras[0])
+                    panels = [strip_boiler(p) for p in paras[1:]] or paras
+                    sec_label = (f"{idx}.{sec['subs'].index(sub) + 1}"
+                                 if sub is not None else f"{idx:02d}")
+                    ratio = read_ratio(os.path.join(out_dir, "images", img))
+                    svg = s_figure(sec_label, (sub or sec)["heading"], first_sentence(purpose),
+                                   purpose, panels, "→ 下一节", "../images/" + img, ratio, n,
+                                   (sub or sec)["heading"])
+                    note = f"{(sub or sec)['heading']}。"
+                slides.append((f"{n:02d}_fig", svg, note)); n += 1
+            return
+        # 流程图
+        if role == "flow" or str(idx) in flows:
+            spec = flows.get(str(idx), {})
+            svg = s_flow(f"{idx:02d}", sec["heading"],
+                         "模板酶→基序抽取→生成式共设计→实验验证，形成“设计即验证”闭环",
+                         spec.get("nodes", []), spec.get("note", ""), n, sec["heading"])
+            slides.append((f"{n:02d}_strategy", svg, spec.get("note", ""))); n += 1
+            return
+        # 背景卡片（curation 优先）
+        if role == "background":
+            cards = curation.get("background", {}).get("cards")
+            if cards:
+                subs = [{"heading": h, "paras": [b]} for h, b in cards]
+                svg = s_cards(f"{idx:02d}", sec["heading"], first_sentence(sec["heading"]),
+                              subs, n, sec["heading"])
+                slides.append((f"{n:02d}_cards", svg, f"{sec['heading']}")); n += 1
+                return
+        # 结论表
+        if role == "conclusion":
+            svg = s_conclusion(f"{idx:02d}", sec["heading"], first_sentence(sec["heading"]),
+                               conclusion.get("rows", []), n, sec["heading"])
+            slides.append((f"{n:02d}_conclusion", svg, "结论速查")); n += 1
+            return
+        # 数据速查
+        if role == "dataref":
+            svg = s_dataref(f"{idx:02d}", sec["heading"], first_sentence(sec["heading"]),
+                            dataref.get("items", []), dataref.get("summary", ""), n, sec["heading"])
+            slides.append((f"{n:02d}_dataref", svg, "数据速查")); n += 1
+            return
+        # 批判
+        if role == "critique":
+            items = (curation.get("critique", {}).get("items")
+                     or sec["bullets"] or sec["paras"])
+            svg = s_critique(f"{idx:02d}", sec["heading"], first_sentence(" ".join(items[:1])),
+                             items, n, sec["heading"])
+            slides.append((f"{n:02d}_critique", svg, "批判")); n += 1
+            return
+        # 讨论
+        if role == "discussion":
+            items = (curation.get("discussion", {}).get("items")
+                     or sec["bullets"] or sec["paras"])
+            svg = s_bullets(f"{idx:02d}", sec["heading"], first_sentence(" ".join(items[:1])),
+                            items, n, sec["heading"])
+            slides.append((f"{n:02d}_discussion", svg, "讨论")); n += 1
+            return
+        # 方法 / 背景 / 自动：表格 + 卡片
+        if sec["subs"]:
+            tbl = first_table(sec)
+            if tbl is not None:
+                ttitle, theader, trows = tbl
+                svg = s_table(f"{idx:02d}", ttitle, first_sentence(sec["heading"]),
+                              theader, trows, n, ttitle)
+                slides.append((f"{n:02d}_table", svg, f"{ttitle}")); n += 1
+                subs_left = [s for s in sec["subs"] if not s["tables"]]
+                if subs_left:
+                    svg = s_cards(f"{idx:02d}", sec["heading"], first_sentence(sec["heading"]),
+                                  subs_left, n, sec["heading"])
+                    slides.append((f"{n:02d}_cards", svg, f"{sec['heading']}")); n += 1
+            else:
+                svg = s_cards(f"{idx:02d}", sec["heading"], first_sentence(sec["heading"]),
+                              sec["subs"], n, sec["heading"])
+                slides.append((f"{n:02d}_cards", svg, f"{sec['heading']}")); n += 1
+            return
+        if sec["bullets"]:
+            svg = s_bullets(f"{idx:02d}", sec["heading"], first_sentence(sec["heading"]),
+                            [strip_boiler(b) for b in sec["bullets"]], n, sec["heading"])
+            slides.append((f"{n:02d}_bullets", svg, f"{sec['heading']}")); n += 1
+            return
+        svg = s_para(f"{idx:02d}", sec["heading"], first_sentence(sec["heading"]),
+                     [strip_boiler(p) for p in sec["paras"]], n, sec["heading"])
+        slides.append((f"{n:02d}_para", svg, f"{sec['heading']}")); n += 1
+
+    # 不属于任何章的节（intro，无分隔页），按 doc 顺序在前
+    for idx in range(1, len(sections) + 1):
+        if idx in member:
+            continue
+        render_section(idx, sections[idx - 1])
+    # 章：分隔页 + 成员节
+    for ch in chapters:
+        svg = s_divider(n, ch.get("label", ""), ch["title"], ch.get("desc", ""))
+        slides.append((f"{n:02d}_divider", svg, None)); n += 1
+        for idx in ch.get("sections", []):
+            render_section(idx, sections[idx - 1])
+
+    os.makedirs(os.path.join(out_dir, "svg_output"), exist_ok=True)
+    os.makedirs(os.path.join(out_dir, "notes"), exist_ok=True)
     for name, svg, note in slides:
         with open(os.path.join(out_dir, "svg_output", name + ".svg"), "w", encoding="utf-8") as f:
             f.write(svg)
@@ -743,6 +1055,8 @@ def main():
     ap.add_argument("--out", default=None, help="输出目录（默认 <md名>_ppt）")
     ap.add_argument("--title", default=None, help="封面标题覆盖")
     ap.add_argument("--authors", default="", help="封面作者行")
+    ap.add_argument("--curation", default=None,
+                    help="编排数据 JSON/YAML（章节/结果四段式/版式分化），达到旧版叙事效果")
     args = ap.parse_args()
 
     md_path = os.path.abspath(args.input)
@@ -753,8 +1067,13 @@ def main():
 
     doc = parse_md(md_path)
     copy_images(doc, md_dir, os.path.join(out_dir, "images"))
-    slides = build(doc, out_dir, title_override=args.title,
-                   authors=args.authors or doc.get("authors", ""))
+    if args.curation:
+        curation = load_curation(args.curation)
+        slides = build_curated(doc, curation, out_dir, title_override=args.title,
+                               authors=args.authors or doc.get("authors", ""))
+    else:
+        slides = build(doc, out_dir, title_override=args.title,
+                       authors=args.authors or doc.get("authors", ""))
     print(f"Generated {len(slides)} slides -> {out_dir}")
     for name, _, _ in slides:
         print(" -", name)

@@ -347,9 +347,14 @@ python3 ${SKILL_DIR}/scripts/finalize_svg.py <project_path>
 
 **8.2.1** 若源是 Markdown（论文/文献），可直接用通用生成器产出 SVG（自动套用本准则：分区镜像 / Agenda / 章节分隔页 / 结果四段式 / 段落级文本框 / 图原比例落位 / 浙大蓝）：
 ```bash
+# 基础用法（机械切片，已自动去套话/去重）
 python3 ${SKILL_DIR}/scripts/md_to_svg.py <input.md> --out <project_path> [--title "..."] [--authors "..."]
+
+# 编排驱动模式（推荐）：用 curation JSON 实现旧版手工编排的叙事质感
+python3 ${SKILL_DIR}/scripts/md_to_svg.py <input.md> --out <project_path> --curation <deck.json>
 # 生成 <project_path>/svg_output/*.svg + images/ + notes/，再走 8.3 导出
 ```
+编排数据（`deck.json`）格式见 `references/md_driven_content.md §10`；助手（WorkBuddy）每次为当前论文自动生成。
 
 **8.3** PPTX导出：
 ```bash
