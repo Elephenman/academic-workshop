@@ -265,6 +265,7 @@ python3 ${SKILL_DIR}/scripts/taste_guardian_cli.py <project_path>/design_spec.md
 Read references/executor-base.md
 Read references/shared-standards.md
 Read references/executor-academic.md
+Read references/md_driven_content.md
 ```
 
 **6.2** 设计参数确认（强制）：输出画布/色值/字体/字号参数
@@ -391,6 +392,7 @@ python3 ${SKILL_DIR}/scripts/notes_to_audio.py <project_path> --backend edge
 │   ├── taste_guardian.md         # ⭐ 品味守卫规则
 │   ├── qa_defense.md             # ⭐ Q&A防御角色
 │   ├── design-styles-excerpt.md  # ⭐ 学术5种风格
+│   ├── md_driven_content.md      # ⭐ MD结构驱动·内容密度准则（分区镜像/Agenda/分隔页/结果四段式）
 │   ├── anti-slop-checklist.md    # ⭐ 反AI slop清单
 │   ├── animation-restraint.md    # ⭐ 动画克制规则
 │   ├── editable-pptx-rules.md    # ⭐ PPTX导出4约束

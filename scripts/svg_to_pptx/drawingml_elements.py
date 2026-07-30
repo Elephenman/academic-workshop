@@ -927,6 +927,70 @@ def _build_run_xml(
 </a:r>'''
 
 
+def _estimate_wrapped_lines(text: str, font_size: float, wrap_w_px: float) -> int:
+    """Estimate how many visual lines ``text`` needs inside a ``wrap_w_px`` box.
+
+    CJK glyphs are ~1em wide; Latin/numbers ~0.5em. Conservative estimate
+    (slightly over-) so the wrapping text box is tall enough to hold the
+    auto-wrapped content in PowerPoint.
+    """
+    if wrap_w_px <= 0:
+        return 1
+    total = 0
+    for line in text.split('\n'):
+        if not line.strip():
+            total += 1
+            continue
+        cjk = len(re.findall(r'[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef\u3000-\u303f]', line))
+        other = len(line) - cjk
+        width = cjk * font_size + other * font_size * 0.5
+        total += max(1, math.ceil(width / wrap_w_px))
+    return max(1, total)
+
+
+def _wrap_text_lines_runs(
+    elem: ET.Element,
+    parent_attrs: dict[str, Any],
+) -> list[list[dict[str, Any]]]:
+    """Group a wrapping <text>'s runs into lines (one list per visual line).
+
+    ``elem.text`` is line 1; every direct child <tspan> (no x/y/dy, so the
+    tspan flattener keeps it) starts a new line. A tspan's ``tail`` continues
+    the same line. Returns a list of lines, each a list of run dicts, or None
+    if empty.
+    """
+    def _is_tspan(e: ET.Element) -> bool:
+        return e.tag.replace(f'{{{SVG_NS}}}', '') == 'tspan'
+
+    lines: list[list[dict[str, Any]]] = []
+    cur: list[dict[str, Any]] = []
+
+    lead = _normalize_text(elem.text or '')
+    if lead:
+        cur.append({**parent_attrs, 'text': lead})
+
+    for child in elem:
+        if not _is_tspan(child):
+            continue
+        # A tspan child begins a new line.
+        if cur:
+            lines.append(cur)
+            cur = []
+        own = _override_run_attrs(parent_attrs, child)
+        ct = _normalize_text(child.text or '')
+        if ct:
+            cur.append({**own, 'text': ct})
+        tail = _normalize_text(child.tail or '')
+        if tail:
+            cur.append({**parent_attrs, 'text': tail})
+
+    if cur:
+        lines.append(cur)
+    # Drop fully empty lines.
+    lines = [ln for ln in lines if any(r['text'].strip() for r in ln)]
+    return lines or None
+
+
 def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     """Convert SVG <text> to DrawingML text shape with multi-run support."""
     x = ctx_x(_f(elem.get('x')), ctx)
@@ -953,6 +1017,13 @@ def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
         'text_decoration': text_decoration,
         'opacity': opacity,
     }
+    # Optional fixed-width paragraph wrapping box (paragraph-level text).
+    # When set, the <text> becomes ONE text box that word-wraps at this width
+    # instead of the legacy single-line auto-fit box. Each direct child
+    # <tspan> (without x/y/dy, so the tspan flattener leaves it intact) starts
+    # a new line inside that single box.
+    wrap_w_px = _f(_get_attr(elem, 'data-wrap-w', ctx)) or 0.0
+
     runs = _build_text_runs(elem, parent_attrs)
 
     if not runs:
@@ -962,22 +1033,72 @@ def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
     if not full_text.strip():
         return None
 
-    # Estimate text dimensions
-    text_width = estimate_text_width(full_text, font_size, font_weight) * 1.15
-    text_height = font_size * 1.5
-    padding = font_size * 0.1
+    # --- Alignment & effects (needed by both modes) ---
+    algn_map = {'start': 'l', 'middle': 'ctr', 'end': 'r'}
+    algn = algn_map.get(text_anchor, 'l')
 
-    # Adjust position based on text-anchor
-    if text_anchor == 'middle':
-        box_x = x - text_width / 2 - padding
-    elif text_anchor == 'end':
-        box_x = x - text_width - padding
+    shape_effect_xml = ''
+    text_effect_xml = ''
+    filt_id = get_effective_filter_id(elem, ctx)
+    if filt_id and filt_id in ctx.defs:
+        filter_elem = ctx.defs[filt_id]
+        effect_kind = classify_filter_effect(filter_elem)
+        if effect_kind == 'glow':
+            text_effect_xml = build_effect_xml(filter_elem)
+        elif effect_kind == 'shadow':
+            shape_effect_xml = build_effect_xml(filter_elem)
+
+    # --- Box sizing: paragraph-wrapping mode vs legacy single-line mode ---
+    if wrap_w_px > 0:
+        # ONE text box that word-wraps at wrap_w_px; each child <tspan> (no
+        # x/y/dy, so the tspan flattener leaves it intact) starts a new line.
+        # Height is estimated from the wrapped line count so PowerPoint can
+        # word-wrap the content naturally inside a single editable box.
+        pad = font_size * 0.15
+        box_w = wrap_w_px + pad * 2
+        if text_anchor == 'middle':
+            box_x = x - wrap_w_px / 2 - pad
+        elif text_anchor == 'end':
+            box_x = x - wrap_w_px - pad
+        else:
+            box_x = x - pad
+        box_y = y - font_size * 0.85
+        line_runs = _wrap_text_lines_runs(elem, parent_attrs)
+        if line_runs is None:
+            return None
+        total_lines = 0
+        for ln in line_runs:
+            ln_text = ''.join(r['text'] for r in ln)
+            total_lines += _estimate_wrapped_lines(ln_text, font_size, wrap_w_px)
+        box_h = total_lines * font_size * 1.5 + pad * 2 + font_size * 0.3
+        inner = ''
+        for i, ln in enumerate(line_runs):
+            if i > 0:
+                inner += '<a:br/>'
+            for r in ln:
+                inner += _build_run_xml(r, fonts, ctx, text_effect_xml)
+        runs_xml = f'<a:p><a:pPr algn="{algn}"/>{inner}</a:p>'
+        body_pr = (f'<a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" '
+                   f'anchor="t" anchorCtr="0"/>')
     else:
-        box_x = x - padding
-
-    box_y = y - font_size * 0.85
-    box_w = text_width + padding * 2
-    box_h = text_height + padding
+        # Legacy single-line auto-fit box (one <text> => one line box).
+        text_width = estimate_text_width(full_text, font_size, font_weight) * 1.15
+        text_height = font_size * 1.5
+        pad = font_size * 0.1
+        if text_anchor == 'middle':
+            box_x = x - text_width / 2 - pad
+        elif text_anchor == 'end':
+            box_x = x - text_width - pad
+        else:
+            box_x = x - pad
+        box_w = text_width + pad * 2
+        box_h = text_height + pad
+        box_y = y - font_size * 0.85
+        runs_xml = (f'<a:p><a:pPr algn="{algn}"/>'
+                    + '\n'.join(_build_run_xml(r, fonts, ctx, text_effect_xml) for r in runs)
+                    + '</a:p>')
+        body_pr = ('<a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" '
+                   'anchor="t" anchorCtr="0">\n<a:spAutoFit/>\n</a:bodyPr>')
 
     # Letter spacing
     spc_attr = ''
@@ -1017,26 +1138,9 @@ def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
                 box_x = new_cx - box_w / 2
                 box_y = new_cy - box_h / 2
 
-    # Alignment
-    algn_map = {'start': 'l', 'middle': 'ctr', 'end': 'r'}
-    algn = algn_map.get(text_anchor, 'l')
-
-    # Shadow effect
-    shape_effect_xml = ''
-    text_effect_xml = ''
-    filt_id = get_effective_filter_id(elem, ctx)
-    if filt_id and filt_id in ctx.defs:
-        filter_elem = ctx.defs[filt_id]
-        effect_kind = classify_filter_effect(filter_elem)
-        if effect_kind == 'glow':
-            text_effect_xml = build_effect_xml(filter_elem)
-        elif effect_kind == 'shadow':
-            shape_effect_xml = build_effect_xml(filter_elem)
-
     shape_id = ctx.next_id()
     rot_attr = f' rot="{text_rot}"' if text_rot else ''
 
-    runs_xml = '\n'.join(_build_run_xml(r, fonts, ctx, text_effect_xml) for r in runs)
     off_x = px_to_emu(box_x)
     off_y = px_to_emu(box_y)
     ext_cx = px_to_emu(box_w)
@@ -1056,14 +1160,9 @@ def convert_text(elem: ET.Element, ctx: ConvertContext) -> ShapeResult | None:
 {shape_effect_xml}
 </p:spPr>
 <p:txBody>
-<a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t" anchorCtr="0">
-<a:spAutoFit/>
-</a:bodyPr>
+{body_pr}
 <a:lstStyle/>
-<a:p>
-<a:pPr algn="{algn}"/>
 {runs_xml}
-</a:p>
 </p:txBody>
 </p:sp>''', bounds_emu=(off_x, off_y, off_x + ext_cx, off_y + ext_cy))
 
