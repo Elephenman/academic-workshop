@@ -78,7 +78,7 @@ academic-workshop/
 | 内容密度准则 | 新增 `references/md_driven_content.md`，固化「Agenda + 章节分隔页 + 结果页四段式 + 背景卡片网格 + 方法表/步骤链」的默认做法，并接入 `SKILL.md` Step 6.1 阅读清单 |
 | 字号体系 | 正文提升到 13.5–15pt、页眉 22.5pt，符合投影可读与留白审美 |
 | 配色 | 改用内置 `zju_blue` 真实模板系统（主蓝 `#003F88`），不再手搓配色 |
-| 通用生成器 | 新增 `scripts/md_to_svg.py`：任意论文 md → 一套符合上述准则的浙大蓝 SVG（分区镜像/Agenda/分隔页/结果四段式/表格/卡片），图按位置原比例落位、段落级文本框、`clean_md` 去标记；`references/md_driven_content.md` 补 §9 作为参考实现说明 |
+| 通用生成器 | 新增 `scripts/md_to_svg.py`：任意论文 md → 一套符合上述准则的浙大蓝 SVG（分区镜像/Agenda/分隔页/结果四段式/表格/卡片），图按位置原比例落位、段落级文本框；自动解析 YAML frontmatter（标题/作者）用于封面，并清除引用块、`[!tip]` 等 Obsidian callout、水平分割线及 `**粗体**`/`*斜体*`/`` `代码` `` 标记，避免泄漏进 PPT；`references/md_driven_content.md` 补 §9 作为参考实现说明 |
 
 ---
 

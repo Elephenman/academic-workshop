@@ -68,11 +68,16 @@ def esc(s):
 
 
 def clean_md(s):
-    """去除 Markdown 强调标记（**粗体** / *斜体* / __ / `代码`），避免泄漏进 PPT。"""
+    """去除 Markdown / Obsidian 标记，避免泄漏进 PPT：
+    **粗体** *斜体* __ ** `代码`，以及引用块 '>' 与 Obsidian callout '[!type]-'。
+    """
     s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
     s = re.sub(r"(?<!\*)\*(?!\*)(.+?)\*(?!\*)", r"\1", s)
     s = re.sub(r"__(.+?)__", r"\1", s)
     s = re.sub(r"`(.+?)`", r"\1", s)
+    # 引用块 / Obsidian callout 标记：'> [!tip]- 标题' -> '标题'
+    s = re.sub(r"^[>\s]+", "", s)            # 行首 > 与空白
+    s = re.sub(r"^\[\!\w+\][-]?\s*", "", s)  # [!note]- / [!tip] 等
     return s.strip()
 
 
@@ -284,13 +289,33 @@ SEP_RE = re.compile(r"^\s*\|?[\s:\-|]+\|?\s*$")
 
 
 def _clean_cell(s):
-    return s.strip().strip("|").strip()
+    # 表格单元格同样需要去除 Markdown 强调标记（**粗体**/*斜体*/`代码`），
+    # 否则会泄漏进 PPT 文本（如 **模板酶结构**）。
+    return clean_md(s.strip().strip("|").strip())
 
 
 def parse_md(path):
     with open(path, encoding="utf-8") as f:
         lines = f.read().split("\n")
-    doc = {"title": None, "sections": [], "lead": []}
+    doc = {"title": None, "authors": "", "sections": [], "lead": []}
+    # YAML frontmatter (--- ... ---) 跳过，避免泄漏进封面摘要；
+    # 同时抽取 authors / title 用于封面。
+    start = 0
+    if lines and lines[0].strip() == "---":
+        for j in range(1, len(lines)):
+            if lines[j].strip() == "---":
+                for k in range(1, j):
+                    kv = lines[k].split(":", 1)
+                    if len(kv) == 2:
+                        key = kv[0].strip()
+                        val = kv[1].strip().strip('"').strip("'")
+                        if key == "authors":
+                            doc["authors"] = val
+                        elif key == "title" and not doc["title"]:
+                            doc["title"] = clean_md(val)
+                start = j + 1
+                break
+        lines = lines[start:]
     cur = None
     sub = None
     in_table = False
@@ -352,6 +377,9 @@ def parse_md(path):
         if bl and cur is not None:
             target = sub if sub is not None else cur
             target["bullets"].append(clean_md(bl.group(1)))
+            continue
+        # 水平分割线 (--- / *** / ___) 视为装饰，跳过
+        if re.fullmatch(r"\s*([-*_])\s*(\1\s*){2,}", line):
             continue
         # 空行
         if not line.strip():
@@ -725,7 +753,8 @@ def main():
 
     doc = parse_md(md_path)
     copy_images(doc, md_dir, os.path.join(out_dir, "images"))
-    slides = build(doc, out_dir, title_override=args.title, authors=args.authors)
+    slides = build(doc, out_dir, title_override=args.title,
+                   authors=args.authors or doc.get("authors", ""))
     print(f"Generated {len(slides)} slides -> {out_dir}")
     for name, _, _ in slides:
         print(" -", name)
