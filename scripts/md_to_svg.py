@@ -999,7 +999,27 @@ def build_curated(doc, curation, out_dir, title_override=None, authors=""):
                             items, n, sec["heading"])
             slides.append((f"{n:02d}_discussion", svg, "讨论")); n += 1
             return
-        # 方法 / 背景 / 自动：表格 + 卡片
+        # 方法：优先用 curation 的 materials / protocols
+        if role == "methods":
+            mat = curation.get("materials")
+            if mat:
+                svg = s_table(mat.get("sec_label", f"{idx:02d}"),
+                              mat.get("title", sec["heading"]),
+                              mat.get("key_msg", ""),
+                              mat.get("header", ["类别", "说明"]),
+                              mat.get("rows", []), n,
+                              mat.get("section_name", sec["heading"]))
+                slides.append((f"{n:02d}_table", svg, f"{mat.get('title','')}")); n += 1
+            prot = curation.get("protocols")
+            if prot:
+                subs = [{"heading": h, "paras": [b]} for h, b in prot.get("cards", [])]
+                svg = s_cards(prot.get("sec_label", f"{idx:02d}"),
+                              prot.get("title", sec["heading"]),
+                              prot.get("key_msg", ""), subs, n,
+                              prot.get("section_name", sec["heading"]))
+                slides.append((f"{n:02d}_cards", svg, f"{prot.get('title','')}")); n += 1
+            return
+        # 背景 / 自动：表格 + 卡片
         if sec["subs"]:
             tbl = first_table(sec)
             if tbl is not None:

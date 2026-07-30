@@ -183,6 +183,8 @@ md_to_svg.py 的「机械切片」模式（无 `--curation`）对各 `##` 分页
 | `background` | 背景卡片（标题+正文） | 取 `###` 子节 |
 | `discussion` | 讨论要点 | 取 md bullets/paras |
 | `critique` | 批判要点 | 取 md bullets/paras |
+| `materials` | 材料表格（`sec_label`/`title`/`section_name`/`key_msg`/`header`/`rows`） | 取 md 表格（易多列紊乱） |
+| `protocols` | 方法卡片（`sec_label`/`title`/`section_name`/`key_msg`/`cards`） | 取 md 子节（易灌源码） |
 
 ### 10.3 使用
 ```bash
